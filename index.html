@@ -1,5 +1,11 @@
-
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Puzzle mosaico</title>
 <style>
+html,body{margin:0;padding:0;width:100%;overflow-x:hidden}
 *{box-sizing:border-box}
 body{background:#000000}
 h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
@@ -17,8 +23,10 @@ h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,
 #counter{font-size:15px;font-weight:700;color:#ffffff;font-family:monospace;letter-spacing:.02em}
 #counter span{color:#b98bff}
 </style>
+</head>
+<body>
 
-<h2 class="sr-only">Puzzle interactivo de madera — haz clic en cada mosaico para ciclar entre los 8 diseños reales</h2>
+<h2 class="sr-only">Puzzle interactivo de madera — haz clic en cada mosaico para ciclar entre los diseños reales</h2>
 <div id="wrap">
   <p id="counter" aria-live="polite" aria-label="Movimientos"><span id="counter-value">0</span></p>
   <div id="grid"></div>
@@ -266,3 +274,5 @@ function start() {
   tiles.forEach((t, i) => renderTile(t, i, colors[i]));
 }
 </script>
+</body>
+</html>
