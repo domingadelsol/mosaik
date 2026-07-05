@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Puzzle mosaico</title>
+<style>
+html,body{margin:0;padding:0;width:100%;overflow-x:hidden}
+*{box-sizing:border-box}
+body{background:#000000}
+h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+#wrap{padding:1rem 6px;display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%;max-width:520px;margin:0 auto;background:#000000}
+#grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#111;border:2px solid #111;border-radius:2px;padding:1px;width:100%}
+.tile{aspect-ratio:1/1;width:100%;cursor:pointer;position:relative;border-radius:0;overflow:hidden;transition:transform .1s,filter .1s;background:#ffffff;touch-action:manipulation;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.tile{transition:transform .1s,filter .1s,border-radius .15s}
+.tile:hover{filter:brightness(1.15);transform:scale(1.05);border-radius:10px;z-index:3}
+.tile:active{transform:scale(0.92)}
+.tile svg{display:block;width:100%;height:100%;transition:transform .15s ease}
+#ctrl{display:flex;gap:8px}
+#ctrl button{background:#ffffff;color:#000000;border:none;padding:10px 30px;font-size:14px;font-weight:700;letter-spacing:.03em;border-radius:999px;cursor:pointer;text-transform:uppercase}
+#ctrl button:hover{background:#e2e2e2}
+#ctrl button:focus-visible{outline:3px solid #b98bff;outline-offset:2px}
+#ctrl button:active{transform:scale(0.96)}
+#counter{font-size:15px;font-weight:700;color:#ffffff;font-family:monospace;letter-spacing:.02em}
+#counter span{color:#b98bff}
+</style>
+</head>
+<body>
+
+<h2 class="sr-only">Puzzle interactivo de madera — haz clic en cada mosaico para ciclar entre los diseños reales</h2>
+<div id="wrap">
+  <p id="counter" aria-live="polite" aria-label="Movimientos"><span id="counter-value">0</span></p>
+  <div id="grid"></div>
+  <div id="ctrl">
+    <button onclick="start()" aria-label="Start: generar un nuevo orden aleatorio del puzzle">Start</button>
+  </div>
+</div>
+
+<script>
+const S = 300;
+const BG = '#ffffff';
+/* Paleta tomada de la imagen de referencia: verde y morado como colores
+   principales, con rosa/magenta como acento ocasional y poco frecuente. */
+const PALETTE = ['#8fdc3c','#8fdc3c','#8fdc3c','#7b3ff2','#7b3ff2','#7b3ff2','#ef3f96'];
+function pickColor(){
+  return PALETTE[Math.floor(Math.random()*PALETTE.length)];
+}
+
+/* ── 8 tile path definitions in 300×300 space ──
+   Black = the painted band. We render it green→teal via SVG filter. */
+const TILES = [
+  {
+    name:'4 arcos borde',
+    paths:[
+      'M 225 300 C 225 280 217 261 203 247 C 189 233 170 225 150 225 C 130 225 111 233 97 247 C 83 261 75 280 75 300 Z',
+      'M 75 0 C 75 20 83 39 97 53 C 111 67 130 75 150 75 C 170 75 189 67 203 53 C 217 39 225 20 225 0 Z',
+      'M 300 75 C 280 75 261 83 247 97 C 233 111 225 130 225 150 C 225 170 233 189 247 203 C 261 217 280 225 300 225 Z',
+      'M 0 225 C 20 225 39 217 53 203 C 67 189 75 170 75 150 C 75 130 67 111 53 97 C 39 83 20 75 0 75 Z'
+    ]
+  },
+  {
+    name:'Arco/túnel',
+    paths:[
+      'M 75 150 L 75 300 L 225 300 L 225 150 C 225 130 217 111 203 97 C 189 83 170 75 150 75 C 130 75 111 83 97 97 C 83 111 75 130 75 150 Z'
+    ]
+  },
+  {
+    name:'Círculo izq',
+    paths:[
+      'M 0 225 C 20 225 39 217 53 203 C 67 189 75 170 75 150 C 75 130 67 111 53 97 C 39 83 20 75 0 75 Z'
+    ]
+  },
+  {
+    name:'Arco NE',
+    paths:[
+      'M 75 0 C 75 29.5 80.8 58.8 92.1 86.1 C 103.4 113.4 120 138.2 140.9 159.1 C 161.8 180 186.6 196.6 213.9 207.9 C 241.2 219.2 270.5 225 300 225 L 300 74.9 C 290.2 74.9 280.4 73 271.3 69.2 C 262.2 65.5 254 60 247 53 C 240 46 234.5 37.8 230.8 28.7 C 227 19.6 225.1 9.8 225.1 0 Z'
+    ]
+  },
+  {
+    name:'X cruzada',
+    paths:[
+      'M 75 0 C 75 29.5 80.8 58.8 92.1 86.1 C 103.4 113.4 120 138.2 140.9 159.1 C 161.8 180 186.6 196.6 213.9 207.9 C 241.2 219.2 270.5 225 300 225 L 300 74.9 C 290.2 74.9 280.4 73 271.3 69.2 C 262.2 65.5 254 60 247 53 C 240 46 234.5 37.8 230.8 28.7 C 227 19.6 225.1 9.8 225.1 0 Z',
+      'M 0 225 C 29.5 225 58.8 219.2 86.1 207.9 C 113.4 196.6 138.2 180 159.1 159.1 C 180 138.2 196.6 113.4 207.9 86.1 C 219.2 58.8 225 29.5 225 0 L 74.9 0 C 74.9 9.8 73 19.6 69.2 28.7 C 65.5 37.8 60 46 53 53 C 46 60 37.8 65.5 28.7 69.2 C 19.6 73 9.8 74.9 0 74.9 Z'
+    ]
+  },
+  {
+    name:'Arco NE + círculo',
+    paths:[
+      'M 75 0 C 75 29.5 80.8 58.8 92.1 86.1 C 103.4 113.4 120 138.2 140.9 159.1 C 161.8 180 186.6 196.6 213.9 207.9 C 241.2 219.2 270.5 225 300 225 L 300 74.9 C 290.2 74.9 280.4 73 271.3 69.2 C 262.2 65.5 254 60 247 53 C 240 46 234.5 37.8 230.8 28.7 C 227 19.6 225.1 9.8 225.1 0 Z',
+      'M 0 225 C 20 225 39 217 53 203 C 67 189 75 170 75 150 C 75 130 67 111 53 97 C 39 83 20 75 0 75 Z'
+    ]
+  },
+  {
+    name:'Arco NE+SO + círculo',
+    paths:[
+      'M 75 0 C 75 29.5 80.8 58.8 92.1 86.1 C 103.4 113.4 120 138.2 140.9 159.1 C 161.8 180 186.6 196.6 213.9 207.9 C 241.2 219.2 270.5 225 300 225 L 300 74.9 C 290.2 74.9 280.4 73 271.3 69.2 C 262.2 65.5 254 60 247 53 C 240 46 234.5 37.8 230.8 28.7 C 227 19.6 225.1 9.8 225.1 0 Z',
+      'M 225 300 C 225 270.5 219.2 241.2 207.9 213.9 C 196.6 186.6 180 161.8 159.1 140.9 C 138.2 120 113.4 103.4 86.1 92.1 C 58.8 80.8 29.5 75 0 75 L 0 225 C 9.8 225 19.6 227 28.7 230.8 C 37.8 234.5 46 240 53 247 C 60 254 65.5 262.2 69.2 271.3 C 73 280.4 74.9 290.2 74.9 300 Z',
+      'M 0 225 C 20 225 39 217 53 203 C 67 189 75 170 75 150 C 75 130 67 111 53 97 C 39 83 20 75 0 75 Z'
+    ]
+  },
+  {
+    name:'Arco NS',
+    paths:[
+      'M 75 0 L 225 0 L 225 300 L 75 300 Z'
+    ]
+  },
+  {
+    name:'Arco NE + Arco NS',
+    paths:[
+      'M 75 0 C 75 29.5 80.8 58.8 92.1 86.1 C 103.4 113.4 120 138.2 140.9 159.1 C 161.8 180 186.6 196.6 213.9 207.9 C 241.2 219.2 270.5 225 300 225 L 300 74.9 C 290.2 74.9 280.4 73 271.3 69.2 C 262.2 65.5 254 60 247 53 C 240 46 234.5 37.8 230.8 28.7 C 227 19.6 225.1 9.8 225.1 0 Z',
+      'M 75 0 L 225 0 L 225 300 L 75 300 Z'
+    ]
+  }
+];
+
+const N = TILES.length;
+const COLS = 4, ROWS = 5, TOTAL = COLS * ROWS;
+
+/* Detecta, para cada diseño, si el trazo llega hasta el borde en cada lado
+   (N/E/S/W), probando un punto cercano al punto medio de cada borde con
+   isPointInFill. Esto nos permite luego saber si dos piezas vecinas
+   "conectan" su trazo a través del borde compartido. */
+function computeSides(paths) {
+  const svgns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgns, 'svg');
+  svg.setAttribute('viewBox', '0 0 300 300');
+  svg.style.position = 'absolute';
+  svg.style.width = '0';
+  svg.style.height = '0';
+  svg.style.overflow = 'hidden';
+  document.body.appendChild(svg);
+  const path = document.createElementNS(svgns, 'path');
+  path.setAttribute('d', paths.join(' '));
+  svg.appendChild(path);
+  function test(x, y) {
+    try {
+      if (typeof DOMPoint !== 'undefined') return path.isPointInFill(new DOMPoint(x, y));
+      const pt = svg.createSVGPoint();
+      pt.x = x; pt.y = y;
+      return path.isPointInFill(pt);
+    } catch (e) { return false; }
+  }
+  const sides = {
+    N: test(150, 8),
+    S: test(150, 292),
+    E: test(292, 150),
+    W: test(8, 150)
+  };
+  document.body.removeChild(svg);
+  return sides;
+}
+TILES.forEach(t => { t.sides = computeSides(t.paths); });
+
+/* Rota el set de lados abiertos según la rotación actual de la pieza
+   (en pasos de 90° en sentido horario). */
+const DIR_ORDER = ['N', 'E', 'S', 'W'];
+function rotatedSides(sides, steps) {
+  const arr = DIR_ORDER.map(d => sides[d]);
+  const out = {};
+  for (let j = 0; j < 4; j++) {
+    out[DIR_ORDER[j]] = arr[((j - steps) % 4 + 4) % 4];
+  }
+  return out;
+}
+
+let states = Array.from({length: TOTAL}, () => Math.floor(Math.random() * N));
+let colors = Array.from({length: TOTAL}, () => pickColor());
+let rotations = Array.from({length: TOTAL}, () => Math.floor(Math.random()*4)*90);
+let moves = 0;
+const counterEl = document.getElementById('counter-value');
+function updateCounter() {
+  counterEl.textContent = moves;
+}
+
+function makeSVG(ti, color) {
+  const t = TILES[ti];
+  const pathsHTML = t.paths.map(d =>
+    `<path d="${d}" fill="${color}" stroke="#111111" stroke-width="2" stroke-linejoin="round"/>`
+  ).join('');
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
+<rect width="300" height="300" fill="${BG}"/>
+${pathsHTML}
+</svg>`;
+}
+
+function renderTile(el, idx, color) {
+  const ti = states[idx];
+  el.innerHTML = makeSVG(ti, color);
+  const svg = el.querySelector('svg');
+  svg.style.transform = 'rotate(' + rotations[idx] + 'deg)';
+}
+
+function sidesOfTile(idx) {
+  return rotatedSides(TILES[states[idx]].sides, rotations[idx] / 90);
+}
+
+function neighborsOf(idx) {
+  const row = Math.floor(idx / COLS), col = idx % COLS;
+  const n = {};
+  if (col < COLS - 1) n.E = idx + 1;
+  if (col > 0) n.W = idx - 1;
+  if (row < ROWS - 1) n.S = idx + COLS;
+  if (row > 0) n.N = idx - COLS;
+  return n;
+}
+
+const OPPOSITE = { N: 'S', S: 'N', E: 'W', W: 'E' };
+
+/* Cuando se mueve (cambia de diseño o rota) la pieza `idx`, si su trazo
+   queda conectado con el de una vecina, la pieza que se movió adopta el
+   color de la vecina que NO se movió. Si no conecta con nadie, conserva
+   su color anterior. */
+function tryConnect(idx) {
+  const mySides = sidesOfTile(idx);
+  const neighbors = neighborsOf(idx);
+  for (const dir of ['E', 'W', 'S', 'N']) {
+    const nIdx = neighbors[dir];
+    if (nIdx === undefined || !mySides[dir]) continue;
+    const nSides = sidesOfTile(nIdx);
+    if (nSides[OPPOSITE[dir]]) {
+      colors[idx] = colors[nIdx];
+      return;
+    }
+  }
+}
+
+const grid = document.getElementById('grid');
+const tiles = [];
+const LONG_PRESS_MS = 450;
+
+function changeDesign(i, tile) {
+  states[i] = (states[i]+1) % N;
+  tryConnect(i);
+  renderTile(tile, i, colors[i]);
+  moves++;
+  updateCounter();
+}
+
+function rotateTile(i, tile) {
+  rotations[i] = (rotations[i] + 90) % 360;
+  tryConnect(i);
+  renderTile(tile, i, colors[i]);
+  moves++;
+  updateCounter();
+}
+
+for (let i = 0; i < TOTAL; i++) {
+  const tile = document.createElement('div');
+  tile.className = 'tile';
+  tiles.push(tile);
+  grid.appendChild(tile);
+  renderTile(tile, i, colors[i]);
+
+  let pressTimer = null;
+  let longPressFired = false;
+
+  tile.addEventListener('pointerdown', (e) => {
+    if (e.button === 2) return; // el botón derecho lo maneja 'contextmenu'
+    longPressFired = false;
+    pressTimer = setTimeout(() => {
+      longPressFired = true;
+      rotateTile(i, tile);
+    }, LONG_PRESS_MS);
+  });
+
+  tile.addEventListener('pointerup', (e) => {
+    if (e.button === 2) return;
+    clearTimeout(pressTimer);
+    if (!longPressFired) changeDesign(i, tile);
+  });
+
+  tile.addEventListener('pointerleave', () => clearTimeout(pressTimer));
+  tile.addEventListener('pointercancel', () => clearTimeout(pressTimer));
+
+  tile.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    clearTimeout(pressTimer);
+    rotateTile(i, tile);
+  });
+}
+
+function start() {
+  states = Array.from({length: TOTAL}, () => Math.floor(Math.random() * N));
+  colors = Array.from({length: TOTAL}, () => pickColor());
+  rotations = Array.from({length: TOTAL}, () => Math.floor(Math.random()*4)*90);
+  moves = 0;
+  updateCounter();
+  tiles.forEach((t, i) => renderTile(t, i, colors[i]));
+}
+</script>
+</body>
+</html>
