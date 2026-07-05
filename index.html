@@ -10,9 +10,10 @@ html,body{margin:0;padding:0;width:100%;overflow-x:hidden}
 body{background:#000000}
 h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 #wrap{padding:1rem 6px;display:flex;flex-direction:column;align-items:center;gap:1rem;width:100%;max-width:520px;margin:0 auto;background:#000000}
-#grid{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(5,1fr);gap:1px;background:#111;border:2px solid #111;border-radius:2px;padding:1px;width:min(100vw - 12px,508px);aspect-ratio:4/5}
-.tile{width:100%;height:100%;cursor:pointer;position:relative;border-radius:0;overflow:hidden;transition:transform .1s,filter .1s;background:#ffffff;touch-action:manipulation;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
-.tile:hover{filter:brightness(1.15);transform:scale(1.05);z-index:3}
+#grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:#111;border:2px solid #111;border-radius:2px;padding:1px;width:100%}
+.tile{aspect-ratio:1/1;width:100%;cursor:pointer;position:relative;border-radius:0;overflow:hidden;transition:transform .1s,filter .1s;background:#ffffff;touch-action:manipulation;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.tile{transition:transform .1s,filter .1s,border-radius .15s}
+.tile:hover{filter:brightness(1.15);transform:scale(1.05);border-radius:10px;z-index:3}
 .tile:active{transform:scale(0.92)}
 .tile svg{display:block;width:100%;height:100%;transition:transform .15s ease}
 #ctrl{display:flex;gap:8px}
@@ -96,6 +97,19 @@ const TILES = [
       'M 225 300 C 225 270.5 219.2 241.2 207.9 213.9 C 196.6 186.6 180 161.8 159.1 140.9 C 138.2 120 113.4 103.4 86.1 92.1 C 58.8 80.8 29.5 75 0 75 L 0 225 C 9.8 225 19.6 227 28.7 230.8 C 37.8 234.5 46 240 53 247 C 60 254 65.5 262.2 69.2 271.3 C 73 280.4 74.9 290.2 74.9 300 Z',
       'M 0 225 C 20 225 39 217 53 203 C 67 189 75 170 75 150 C 75 130 67 111 53 97 C 39 83 20 75 0 75 Z'
     ]
+  },
+  {
+    name:'Arco NS',
+    paths:[
+      'M 75 0 L 225 0 L 225 300 L 75 300 Z'
+    ]
+  },
+  {
+    name:'Arco NE + Arco NS',
+    paths:[
+      'M 75 0 C 75 29.5 80.8 58.8 92.1 86.1 C 103.4 113.4 120 138.2 140.9 159.1 C 161.8 180 186.6 196.6 213.9 207.9 C 241.2 219.2 270.5 225 300 225 L 300 74.9 C 290.2 74.9 280.4 73 271.3 69.2 C 262.2 65.5 254 60 247 53 C 240 46 234.5 37.8 230.8 28.7 C 227 19.6 225.1 9.8 225.1 0 Z',
+      'M 75 0 L 225 0 L 225 300 L 75 300 Z'
+    ]
   }
 ];
 
@@ -161,7 +175,7 @@ function updateCounter() {
 function makeSVG(ti, color) {
   const t = TILES[ti];
   const pathsHTML = t.paths.map(d =>
-    `<path d="${d}" fill="${color}" stroke="#111111" stroke-width="4" stroke-linejoin="round"/>`
+    `<path d="${d}" fill="${color}" stroke="#111111" stroke-width="2" stroke-linejoin="round"/>`
   ).join('');
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300">
 <rect width="300" height="300" fill="${BG}"/>
